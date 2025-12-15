@@ -1,51 +1,51 @@
-use chrono::prelude::*;
+struct Task {
+    id: String,
+    time: i32,
+    data: String,
+}
 
 struct TodoList {
-    time: DateTime<Local>,
-    tasks: Vec<Task>,
-}
-impl TodoList {
-    pub fn new() -> TodoList {
-        let _time = Local::now();
-        return TodoList {
-            time: _time,
-            tasks: vec![],
-        };
-    }
-    pub fn add_task(&mut self, task: Task) {
-        self.tasks.push(task);
-    }
+    dayly_list: Vec<Task>,
 }
 
-struct Task {
-    id: i32,
-    name: String,
-    start: i32,
-    end: i32,
-}
-impl Task {
-    pub fn printer(&self) {
-        println!(
-            "id:{} name:{} start:{} end:{}",
-            self.id, self.name, self.start, self.end
-        )
+impl TodoList {
+    pub fn new() -> Self {
+        return TodoList { dayly_list: vec![] };
     }
+    pub fn execute(task: Task, command: Command) {
+        match command {
+            Add => add(task),
+            Remove => remove(task),
+            Update => update(task),
+            Done => done(task),
+            Delete => delete(task),
+            _ => println!("not implamented yet"),
+        }
+    }
+    fn add(task: Task) {}
+    fn remove(task: Task) {}
+    fn update(task: Task) {}
+
+    fn done(task: Task) {}
+    fn delete(task: Task) {}
+}
+
+enum Command {
+    Add(Task),
+    Remove(Task),
+    Update(Task),
+    Done(Task),
+    Delete(Task),
 }
 
 fn main() {
-    let mut todo = TodoList::new();
-    let task: Task = Task {
-        id: 1,
-        name: String::from("new"),
-        start: 12,
-        end: 14,
+    println!("Hello world");
+
+    let td: TodoList::new();
+    let t: Task = Task {
+        id: "12",
+        time: 2,
+        data: "hello",
     };
-    let rtodo = &mut todo;
-
-    todo.add_task(task);
-
-    println!("Hello, world! {}", todo.time);
-    for t in todo.tasks.iter() {
-        t.printer();
-    }
+    td.execute()
 }
