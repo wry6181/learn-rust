@@ -12,22 +12,48 @@ impl TodoList {
     pub fn new() -> Self {
         return TodoList { dayly_list: vec![] };
     }
-    pub fn execute(task: Task, command: Command) {
+    pub fn execute(&self, task: Task, command: Command) {
         match command {
-            Add => add(task),
-            Remove => remove(task),
-            Update => update(task),
-            Done => done(task),
-            Delete => delete(task),
+            Add => self.add(task),
+            Remove => self.remove(task),
+            Update => self.update(task),
+            Done => self.done(task),
+            Delete => self.delete(task),
             _ => println!("not implamented yet"),
         }
     }
-    fn add(task: Task) {}
-    fn remove(task: Task) {}
-    fn update(task: Task) {}
-
-    fn done(task: Task) {}
-    fn delete(task: Task) {}
+    fn open_database_connection(&self) -> Option<bool> {
+        return Some(true);
+    }
+    fn add(&mut self, task: Task) -> Option<bool> {
+        match self.open_database_connection() {
+            Some(true) => {
+                self.dayly_list.push(task);
+                Some(true)
+            }
+            Some(false) | None => {
+                println!("failed to open database");
+                None
+            }
+        }
+    }
+    fn remove(&mut self, task: Task) -> Option<bool> {
+        match self.open_database_connection() {
+            Some(true) => {
+                if let Some(index) = self.dayly_list.iter().position(|x| x == &task) {
+                    self.dayly_list.remove(index);
+                }
+                Some(true)
+            }
+            Some(false) | None => {
+                println!("failed to open database");
+                None
+            }
+        }
+    }
+    fn update(task: Task) -> Option<bool> {}
+    fn done(task: Task) -> Option<bool> {}
+    fn delete(task: Task) -> Option<bool> {}
 }
 
 enum Command {
