@@ -1,66 +1,90 @@
 use std::error::Error;
 
+use chrono::prelude::*;
 use sqlx::Connection;
 use sqlx::Row;
+use std::io;
+use std::ops::Add;
+use tokio::task;
 
 #[derive(Debug, Clone)]
+
 struct Task {
     pub id: String,
-    pub time: i32,
+    pub time: i64,
+    pub name: String,
+    pub data: String,
+}
+
+struct TaskInput {
+    pub name: String,
     pub data: String,
 }
 
 struct TodoList {
     dayly_list: Vec<Task>,
+    counter: i64,
 }
 
 impl TodoList {
     pub fn new() -> Self {
-        TodoList { dayly_list: vec![] }
+        TodoList {
+            dayly_list: vec![],
+            counter: 0,
+        }
     }
 
     pub fn execute(&mut self, command: Command) -> Result<(), Box<dyn std::error::Error>> {
         match command {
-            Command::Add(task) => {
+            Command::Add(task_input) => {
+                self.counter += 1;
+                let task = Task {
+                    id: self.counter.to_string(),
+                    time: Utc::now().timestamp_millis(),
+                    name: task_input.name,
+                    data: task_input.data,
+                };
                 self.add(task)?;
                 Ok(())
             }
-            Command::Remove(task) => {
-                self.remove(&task)?;
+            Command::Remove(task_input) => {
+                //self.remove(task)?;
                 Ok(())
             }
-            Command::Update(task) => {
-                self.update(task);
+            Command::Update(task_input) => {
+                //self.update(task);
                 Ok(())
             }
-            Command::Done(task) => {
-                self.done(task);
+            Command::Done(task_input) => {
+                //self.done(task);
                 Ok(())
             }
-            Command::Delete(task) => {
-                self.delete(task);
+            Command::Delete(task_input) => {
+                //self.delete(task);
                 Ok(())
             }
         }
     }
 
     async fn create(&self, task: &Task, pool: &sqlx::PgPool) -> Result<(), Box<dyn Error>> {
-        let query = "INSERT INTO task (id, time, data) VALUES ($1, $2, $3)";
+        let query = "INSERT INTO tasks (id, time, name, data) VALUES ($1, $2, $3, $4)";
         sqlx::query(query)
             .bind(&task.id)
             .bind(&task.time)
+            .bind(&task.name)
             .bind(&task.data)
             .execute(pool)
             .await?;
         Ok(())
     }
     async fn get_tasks(&mut self, pool: &sqlx::PgPool) -> Result<(), Box<dyn Error>> {
-        let query = "SELECT id, time, data FROM task";
+        let query = "SELECT id, time, name, data FROM tasks";
         let rows = sqlx::query(query).fetch_all(pool).await?;
         for row in rows.iter() {
             self.dayly_list.push(Task {
                 id: row.get("id"),
                 time: row.get("time"),
+                name: row.get("name"),
                 data: row.get("data"),
             });
         }
@@ -84,7 +108,7 @@ impl TodoList {
 
     fn print_list(&self) {
         for i in self.dayly_list.iter() {
-            println!("{} {} {}", i.id, i.time, i.data);
+            println!("{} {} {} {}", i.id, i.time, i.name, i.data);
         }
     }
 
@@ -94,11 +118,39 @@ impl TodoList {
 }
 
 enum Command {
-    Add(Task),
-    Remove(Task),
-    Update(Task),
-    Done(Task),
-    Delete(Task),
+    Add(TaskInput),
+    Remove(TaskInput),
+    Update(TaskInput),
+    Done(TaskInput),
+    Delete(TaskInput),
+}
+
+pub fn parse_to_command(line: String) -> Result<Command, Box<dyn Error>> {
+    let tokens: Vec<&str> = line.split_whitespace().collect();
+
+    let (command_token, task_tokens) = tokens.split_first().ok_or("Empty input")?;
+
+    let task_input = parse_to_task(task_tokens)?;
+
+    match command_token.to_lowercase().as_str() {
+        "add" => Ok(Command::Add(task_input)),
+        "remove" => Ok(Command::Remove(task_input)),
+        "update" => Ok(Command::Update(task_input)),
+        "done" => Ok(Command::Done(task_input)),
+        "delete" => Ok(Command::Delete(task_input)),
+        _ => Err("invalid command".into()),
+    }
+}
+
+fn parse_to_task(task_tokens: &[&str]) -> Result<TaskInput, Box<dyn Error>> {
+    let (name, data) = task_tokens
+        .split_first()
+        .ok_or("missing task description")?;
+
+    Ok(TaskInput {
+        name: name.to_string(),
+        data: data.join(" "),
+    })
 }
 
 #[tokio::main]
@@ -108,27 +160,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     sqlx::migrate!("./migrations").run(&pool).await?;
 
-    let res = sqlx::query("SELECT 1 + 1 as sum").fetch_one(&pool).await?;
+    let mut tl = TodoList::new();
 
-    let sum: i32 = res.get("sum");
+    let mut stop = false;
+    let mut commands: Vec<String> = vec![];
 
-    println!("{}", sum);
+    while !stop {
+        let mut command: String = String::new();
+        std::io::stdin()
+            .read_line(&mut command)
+            .expect("Unable to read Stdin");
 
-    let mut td = TodoList::new();
+        //commands.push(command.clone());
+        let command = parse_to_command(command)?;
+        if tl.execute(command).is_ok() {
+            break;
+        }
+    }
 
-    let t = Task {
-        id: "12_32_234_33".to_string(),
-        time: 2,
-        data: "hello".to_string(),
-    };
-    let t = Task {
-        id: "13".to_string(),
-        time: 2,
-        data: "hello".to_string(),
-    };
     //td.create(&t, &pool).await?;
-    td.get_tasks(&pool).await?;
-    td.print_list();
+    tl.get_tasks(&pool).await?;
+    tl.print_list();
 
     Ok(())
 }
